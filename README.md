@@ -1,4 +1,4 @@
-# EntLib
+<h1 align="center">EntLib<h1>
 
 EntLib(EntLibrary)는 코딩교육 플랫폼 엔트리에서 커스텀 블록/카테고리를 만들수 있도록 해주는 라이브러리 입니다.
 
