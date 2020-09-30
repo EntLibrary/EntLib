@@ -1,0 +1,19 @@
+{
+  "devDependencies": {
+    "typescript": "^4.0.3",
+    "parcel-bundler": "1.12.4"
+  },
+  "name": "entlib",
+  "version": "3.0.0",
+  "description": "Custom Block/Category Library for Entry",
+  "main": "dist/index.js",
+  "dependencies": {},
+  "scripts": {},
+  "keywords": [
+    "Entry",
+    "EntLib",
+    "EntLibrary"
+  ],
+  "author": "muno",
+  "license": "MIT"
+}
