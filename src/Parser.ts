@@ -1,3 +1,6 @@
+import { Action } from "Entlib/Action"
+import { MultiStatementSkeleton } from "./Statements"
+
 export class SyntaxTree {
     public type: SyntaxCode
     public content: (SyntaxTree | string)[]
@@ -18,7 +21,8 @@ export enum SyntaxCode {
     CONDITION,
     PARAM,
     TEXT,
-    DROPDOWN
+    DROPDOWN,
+    STATEMENT
 }
 
 export interface BlockSyntax {
@@ -26,7 +30,7 @@ export interface BlockSyntax {
     color: string
     outerLine: string
     skeleton: string
-    statements: []
+    statements: any[]
     params: any[]
     events: { [key: string]: Function[] }
     def: {
@@ -34,6 +38,7 @@ export interface BlockSyntax {
         type: string
     },
     paramsKeyMap: { [key: string]: number }
+    statementsKeyMap: { [key: string]: number }
     class: string
     func: Function
     event?: string
@@ -42,7 +47,7 @@ export interface BlockSyntax {
 export class Parser {
     public parse(template: string, isParameter: boolean = false): SyntaxTree {
         let templateType: SyntaxCode
-        let tree: SyntaxTree = <any> null
+        let tree: SyntaxTree = null!
         let retIndex: number = 0
         let passCount: number = 0
         let openedBracket: number = 1
@@ -54,25 +59,27 @@ export class Parser {
                     if (char == '[') templateType = isParameter ? SyntaxCode.DROPDOWN : SyntaxCode.BLOCK
                     else if (char == '(') templateType = SyntaxCode.PARAM
                     else if (char == '<') templateType = SyntaxCode.CONDITION
+                    else if (char == '{') templateType = SyntaxCode.STATEMENT
                     else templateType = SyntaxCode.TEXT
                     tree = new SyntaxTree(templateType, [])
                     if (templateType == SyntaxCode.TEXT) tree.content.push('') && (tree.content[tree.content.length - 1] += char)
                     return
                 }
-                if (isParameter && ['[', '(', '<'].includes(char)) openedBracket++
-                if ([']', ')', '>'].includes(char)) openedBracket--
+                if (isParameter && ['[', '(', '<', '{'].includes(char)) openedBracket++
+                if ([']', ')', '>', '}'].includes(char)) openedBracket--
                 if (!isParameter && openedBracket < 1 && arr.length - 1 != i) throw new SyntaxError('Invalid Syntax: Multiple-Root-Brackets are not allowed.')
-                if (((arr.length - 1 == i) || (isParameter && [']', ')', '>'].includes(char) && openedBracket == 0)) && templateType != SyntaxCode.TEXT) {
+                if (((arr.length - 1 == i) || (isParameter && [']', ')', '>', '}'].includes(char) && openedBracket == 0)) && templateType != SyntaxCode.TEXT) {
                     if ((templateType == SyntaxCode.BLOCK || templateType == SyntaxCode.DROPDOWN) && char != ']') throw new SyntaxError('Invalid Syntax: Required \']\'')
                     if (templateType == SyntaxCode.PARAM && char != ')') throw new SyntaxError('Invalid Syntax: Required \')\'')
                     if (templateType == SyntaxCode.CONDITION && char != '>') throw new SyntaxError('Invalid Syntax: Required \'>\'')
+                    if (templateType == SyntaxCode.STATEMENT && char != '}') throw new SyntaxError('Invalid Syntax: Required \'}\'')
                     retIndex = i
                     throw 'break'
                 }
-                if (isParameter || templateType == SyntaxCode.TEXT ? true : !['[', '(', '<'].includes(char)) {
+                if (isParameter || templateType == SyntaxCode.TEXT ? true : !['[', '(', '<', '{'].includes(char)) {
                     if (typeof tree.content[tree.content.length - 1] != 'string') tree.content.push('')
                     if (isParameter) {
-                        if (char == ':') {
+                        if (char == ':' && templateType != SyntaxCode.STATEMENT) {
                             tree.content.push('')
                             isDefaultValue = true
                         } else if (isDefaultValue ? char != ' ' : true) {
@@ -141,10 +148,11 @@ export class Parser {
                         type: name
                     },
                     paramsKeyMap: {},
+                    statementsKeyMap: {},
                     class: className,
                     func: action
                 }
-                return { base, neededDynamicDropdown: [] }
+                return { base, neededDynamicDropdown: [], customSkeletons: {} }
             }
             case SyntaxCode.CONDITION:
             case SyntaxCode.PARAM:
@@ -166,12 +174,16 @@ export class Parser {
                         type: name
                     },
                     paramsKeyMap: {},
+                    statementsKeyMap: {},
                     class: className,
                     func: action
                 }
                 if (event) base.event = event
                 const neededDynamicDropdown: string[] = []
+                const customSkeletons: { [key: string]: MultiStatementSkeleton } = {}
                 let paramCount = 0
+                let lineBreakCount = 0
+                let indicatorGenerated = false
                 if (indicator && indicatorType == IndicatorType.EVENT) {
                     base.template += `%${++paramCount}`
                     base.params.push({
@@ -197,19 +209,19 @@ export class Parser {
                                     type: 'text',
                                     params: [content.content[1]]
                                 })
-                                base.paramsKeyMap[(<string> content.content[0]).toUpperCase()] = paramCount - 1
+                                base.paramsKeyMap[(<string> content.content[0]).toUpperCase().trim()] = paramCount - 1
                             } else if (content.type == SyntaxCode.CONDITION) {
                                 base.params.push({
                                     type: 'Block',
                                     accept: 'boolean'
                                 })
                                 base.def.params.push({
-                                    type: (<string> content.content[1]).toLowerCase() == 'true' ? 'True' : 'False',
+                                    type: (<string> content.content[1]).toLowerCase().trim() == 'true' ? 'True' : 'False',
                                 })
-                                base.paramsKeyMap[(<string> content.content[0]).toUpperCase()] = paramCount - 1
+                                base.paramsKeyMap[(<string> content.content[0]).toUpperCase().trim()] = paramCount - 1
                             } else if (content.type == SyntaxCode.DROPDOWN) {
                                 const dropdown = {
-                                    key: <string> content.content[0],
+                                    key: (<string> content.content[0]).trim(),
                                     isDynamic: content.content[1] == 'true',
                                     map: <[string, string][]>(content.content[1] != 'true' ? content.content.slice(2).reduce((acc, cur, i, arr) => {
                                         if (!(acc[acc.length - 1] instanceof Array)) acc.push([])
@@ -283,14 +295,54 @@ export class Parser {
                                     accept: 'boolean'
                                 })
                                 base.def.params.push({
-                                    type: (<string> content.content[1]).toLowerCase() == 'true' ? 'True' : 'False',
+                                    type: (<string> content.content[0]).toLowerCase().trim() == 'true' ? 'True' : 'False',
                                 })
-                                base.paramsKeyMap[(<string> content.content[0]).toUpperCase()] = paramCount - 1
+                            } else if (content.type == SyntaxCode.STATEMENT) {
+                                const statementCount = tree.content.filter((content: any) => content.type == SyntaxCode.STATEMENT).length
+                                if (statementCount > 1 && lineBreakCount < statementCount - 1) {
+                                    if (!indicatorGenerated) {
+                                        base.template += ` %${++paramCount}`
+                                        base.params.push({
+                                            type: 'Indicator',
+                                            img: indicator,
+                                            size: 11
+                                        })
+                                        base.def.params.push(null)
+                                        base.statementsKeyMap[(content.content[0] as string).toUpperCase().trim()] = paramCount - 2
+                                        indicatorGenerated = true
+                                    } else {
+                                        base.statementsKeyMap[(content.content[0] as string).toUpperCase().trim()] = paramCount - 1
+                                    }
+                                    base.params.push({
+                                        type: 'LineBreak'
+                                    })
+                                    lineBreakCount++
+                                } else {
+                                    base.template = base.template.slice(0, (1 + paramCount.toString().length) * -1)
+                                    paramCount--
+                                    if (!indicatorGenerated) {
+                                        base.template += ` %${++paramCount}`
+                                        base.params.push({
+                                            type: 'Indicator',
+                                            img: indicator,
+                                            size: 11
+                                        })
+                                        base.def.params.push(null)
+                                        base.statementsKeyMap[(content.content[0] as string).toUpperCase().trim()] = paramCount - 2
+                                        indicatorGenerated = true
+                                    } else {
+                                        base.statementsKeyMap[(content.content[0] as string).toUpperCase().trim()] = paramCount - 1
+                                    }
+                                }
+                                if (statementCount == 1) base.skeleton = 'basic_loop'
+                                else if (statementCount == 2) base.skeleton = 'basic_double_loop'
+                                base.statements.push({ accept: 'basic' })
                             }
                         }
                     }
                 })
-                if (indicator && indicatorType == IndicatorType.DEFAULT) {
+                const statementCount = tree.content.filter((content: any) => content.type == SyntaxCode.STATEMENT).length
+                if (indicator && indicatorType == IndicatorType.DEFAULT && statementCount == 0) {
                     base.template += ` %${++paramCount}`
                     base.params.push({
                         type: 'Indicator',
@@ -299,7 +351,12 @@ export class Parser {
                     })
                     base.def.params.push(null)
                 }
-                return { base, neededDynamicDropdown }
+                if (statementCount > 2) {
+                    const id = Math.random().toString(36).substr(2, 4)
+                    base.skeleton = id
+                    customSkeletons[id] = new MultiStatementSkeleton(statementCount)
+                }
+                return { base, neededDynamicDropdown, customSkeletons }
             }
             default: {
                 const base: BlockSyntax = {
@@ -321,11 +378,48 @@ export class Parser {
                         type: name
                     },
                     paramsKeyMap: {},
+                    statementsKeyMap: {},
                     class: className,
                     func: action
                 }
-                return { base, neededDynamicDropdown: [] }
+                return { base, neededDynamicDropdown: [], customSkeletons: {} }
             }
+        }
+    }
+
+    public parseButton({ textColor, text, align, action, name, className }: {
+        textColor: string
+        text: string
+        align: 'center' | 'right' | 'left'
+        action: Function
+        name: string
+        className: string
+    }) {
+        const base: BlockSyntax = {
+            template: '%1',
+            color: '#eee',
+            skeleton: 'basic_button',
+            params: [{
+                type: 'Text',
+                text,
+                align,
+                color: textColor
+            }],
+            events: { mousedown: [action] },
+            def: {
+                params: [null],
+                type: name
+            },
+            func: undefined as any,
+            class: undefined as any,
+            outerLine: undefined as any,
+            statements: undefined as any,
+            paramsKeyMap: undefined as any,
+            statementsKeyMap: undefined as any
+        }
+
+        return {
+            base, neededDynamicDropdown: [], customSkeletons: {}
         }
     }
 

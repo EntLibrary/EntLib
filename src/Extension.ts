@@ -79,7 +79,7 @@ export class Extension {
 
     public disable() {
         if (this.disabled) throw new Error('Disabled Extension')
-        if (extensions.has(this)) extensions.delete(this)
+        extensions.delete(this)
         this.disabled = true
     }
 
@@ -105,6 +105,9 @@ export class Extension {
                     })
                 }
             })
+            for (const key in block.block.customSkeletons) {
+                Entry.skeleton[key] = block.block.customSkeletons[key]
+            }
             Entry.block[block.name] = block.block.base
         })
         if (!Entry.container.getDropdownList.__isProxy) {
@@ -186,7 +189,17 @@ export class Extension {
         }
     }
 
-    static allExtensionsLoaded() {
+    public static allExtensionsLoaded() {
+        Entry.FieldLineBreak.prototype.align = function (targetStatementIndex: number) {
+            const bv = this._blockView
+            if (bv._statements.length === 0) return
+            if (!bv._statements[targetStatementIndex]) return
+            this.box.set({
+                y:
+                    bv._statements.slice(0, targetStatementIndex).reduce((acc: number, cur: any) => acc += Math.max(cur.height, 20), 0)
+                    + (bv._statements[targetStatementIndex].height || 20) + (28 * (targetStatementIndex + 1))
+            })
+        }
         if (Entry.getMainWS()) {
             if (Entry.projectId) {
                 if (!ProjectLoader.running) {
@@ -202,5 +215,13 @@ export class Extension {
         } else {
             if (!EventManager.running) EventManager.run()
         }
+    }
+
+    public static hideClass(className: string) {
+        if (Entry.getMainWS()) Entry.getMainWS().blockMenu.banClass(className)
+    }
+
+    public static showClass(className: string) {
+        if (Entry.getMainWS()) Entry.getMainWS().blockMenu.unbanClass(className)
     }
 }

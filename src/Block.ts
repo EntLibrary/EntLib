@@ -61,7 +61,8 @@ export class Block {
             indicatorType: IndicatorType.DEFAULT
         }, syntaxTree)
         return {
-            ...ret, dynamics: Object.keys(this.dynamics).reduce((acc, cur) => {
+            ...ret,
+            dynamics: Object.keys(this.dynamics).reduce((acc, cur) => {
                 acc[cur.toLowerCase()] = this.dynamics[cur]
                 return acc
             }, <{ [key: string]: any }> {})
