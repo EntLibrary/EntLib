@@ -1,5 +1,5 @@
 const sel = <K extends keyof HTMLElementTagNameMap = 'div'>(selector: string) => {
-    return document.querySelector.bind(document)(selector) as HTMLElementTagNameMap[K] | null
+    return document.querySelector(selector) as HTMLElementTagNameMap[K] | null
 }
 
 let id: string = 'null'

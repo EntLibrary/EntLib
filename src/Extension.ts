@@ -8,7 +8,7 @@ import blocks from './Blocks'
 EntryStatic._getAllBlocks = EntryStatic.getAllBlocks
 
 EntryStatic.getAllBlocks = () => {
-    const b = <typeof blocks> JSON.parse(JSON.stringify(blocks))
+    const b = JSON.parse(JSON.stringify(blocks)) as typeof blocks
     Array.from(extensions).forEach(extension => {
         b.push({
             category: extension.id,
@@ -141,6 +141,7 @@ export class Extension {
                         background-color: ${this.enabledColor} !important;
                         background-image: url(${this.enabledIcon}) !important;
                         border-color: ${this.enabledColor} !important;
+                        color: white !important;
                 }
             `.replace(/    /gi, '').replace(/\n/g, '')
             document.head.appendChild(styleElement)

@@ -1,4 +1,3 @@
-import { Action } from "Entlib/Action"
 import { MultiStatementSkeleton } from "./Statements"
 
 export class SyntaxTree {
@@ -342,7 +341,7 @@ export class Parser {
                     }
                 })
                 const statementCount = tree.content.filter((content: any) => content.type == SyntaxCode.STATEMENT).length
-                if (indicator && indicatorType == IndicatorType.DEFAULT && statementCount == 0) {
+                if (indicator && indicatorType == IndicatorType.DEFAULT && statementCount == 0 && tree.type == SyntaxCode.BLOCK) {
                     base.template += ` %${++paramCount}`
                     base.params.push({
                         type: 'Indicator',
@@ -368,7 +367,7 @@ export class Parser {
                     params: [{
                         type: 'Text',
                         text: 'Error',
-                        color: '#ffffff',
+                        color: '#ff0000',
                         class: 'bold',
                         align: 'center'
                     }],
@@ -410,12 +409,12 @@ export class Parser {
                 params: [null],
                 type: name
             },
-            func: undefined as any,
-            class: undefined as any,
-            outerLine: undefined as any,
-            statements: undefined as any,
-            paramsKeyMap: undefined as any,
-            statementsKeyMap: undefined as any
+            func: null!,
+            class: null!,
+            outerLine: null!,
+            statements: null!,
+            paramsKeyMap: null!,
+            statementsKeyMap: null!
         }
 
         return {

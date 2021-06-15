@@ -1,7 +1,6 @@
-import { IndicatorType, Parser, SyntaxCode, SyntaxTree } from "./Parser"
+import { Parser } from "./Parser"
 import { Block } from "./Block"
-import { executeAction } from "./Action"
-import { Action } from "Entlib/Action"
+import { executeAction, Action } from "./Action"
 
 export interface ButtonParam {
     template: string
